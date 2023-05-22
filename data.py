@@ -29,7 +29,7 @@ class BasicDataset(torch.utils.data.Dataset):
 
 
 def load_mrs_simulations():
-    with h5py.File("../MRS_data/sample_data.h5") as hf:
+    with h5py.File("/MRS_data/sample_data.h5") as hf:
         gt_fids = hf["ground_truth_fids"][()]  # ground truth free induction decay signal value
         ppm = hf["ppm"][()][:1]
 
@@ -56,7 +56,7 @@ def load_mrs_simulations():
 
 def load_mrs_real():
     import matplotlib.pyplot as plt
-    with h5py.File("../MRS_data/track_02_training_data.h5") as hf:
+    with h5py.File("/MRS_data/track_02_training_data.h5") as hf:
         gt_fids = hf["transient_fids"][()]
         ppm = hf['ppm'][()][:1]
     gt_spec = np.fft.fftshift(np.fft.ifft(gt_fids, axis=1), axes=1)

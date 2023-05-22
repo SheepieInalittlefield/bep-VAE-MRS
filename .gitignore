@@ -1,0 +1,9 @@
+/MRS_data/
+/basic_MNIST_VAE/
+/basic_MRS_VAE/
+/custom_beta_MRS_VAE/
+/custom_beta_VAE/
+/custom_disentangled_beta_VAE/
+/Custom_MRS_VAE/
+/custom_VAE/
+/wandb/
