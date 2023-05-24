@@ -1,9 +1,11 @@
 import torch.monitor
-from pythae.models.nn import BaseEncoder, BaseDecoder
+from pythae.models.nn import BaseEncoder, BaseDecoder, BaseDiscriminator
 from pythae.models.base.base_utils import ModelOutput
 import torch.nn as nn
 import torch.nn.functional as funct
-class MRS_encoder(BaseEncoder):
+
+
+class ConvolutionalEncoder(BaseEncoder):
     def __init__(self, args=None):
         BaseEncoder.__init__(self)
 
@@ -47,14 +49,14 @@ class MRS_encoder(BaseEncoder):
         return output
 
 
-class MRS_decoder(BaseDecoder):
+class ConvolutionalDecoder(BaseDecoder):
     def __init__(self, args=None):
         BaseDecoder.__init__(self)
         self.input_dim = args.input_dim
         self.latent_dim = args.latent_dim
         self.n_channels = 1
 
-        self.fc = nn.Linear(self.latent_dim, 1024*8)
+        self.fc = nn.Linear(self.latent_dim, 1024 * 8)
         self.layers = nn.Sequential(
             nn.Conv1d(1024, 512, 3, 1, padding=1),
             nn.Upsample(scale_factor=2, mode='linear'),
@@ -85,5 +87,82 @@ class MRS_decoder(BaseDecoder):
         h1 = self.fc(z).reshape(z.shape[0], 1024, 8)
         output = ModelOutput(
             reconstruction=self.layers(h1)
+        )
+        return output
+
+
+class DenseEncoder(BaseEncoder):
+    def __init__(self, args=None):
+        BaseDecoder.__init__(self)
+
+        self.input_dim = args.input_dim
+        self.n_channels = 1
+        self.latent_dim = args.latent_dim
+
+        self.layers = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(2048, 1024),
+            nn.BatchNorm1d(1024),
+            nn.ReLU(),
+
+        )
+
+        self.log_var = nn.Linear(1024, self.latent_dim)
+        self.embedding = nn.Linear(1024, self.latent_dim)
+
+    def forward(self, x: torch.Tensor) -> ModelOutput:
+        h1 = self.layers(x).reshape([x.shape[0], 1024])  # x.shape[0] = batch size
+        output = ModelOutput(
+            embedding=self.embedding(h1),
+            log_covariance=self.log_var(h1)
+        )
+        return output
+
+
+class DenseDecoder(BaseDecoder):
+    def __init__(self, args=None):
+        BaseDecoder.__init__(self)
+        self.input_dim = args.input_dim
+        self.latent_dim = args.latent_dim
+        self.n_channels = 1
+
+        self.fc = nn.Linear(self.latent_dim, 1024)
+
+        self.layers = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(1024, 2048),
+            nn.BatchNorm1d(2048),
+            nn.Identity()
+        )
+
+    def forward(self, z: torch.Tensor) -> ModelOutput:
+        h1 = self.fc(z).reshape(z.shape[0], 1024, 1)
+        output = ModelOutput(
+            reconstruction=self.layers(h1)
+        )
+        return output
+
+
+class DenseDiscriminator(BaseDiscriminator):
+    def __init__(self, args=None):
+        BaseDiscriminator.__init__(self)
+        self.input_dim = args.input_dim
+        self.latent_dim = args.latent_dim
+        self.n_channels = 1
+
+        self.fc = nn.Linear(self.latent_dim, 1024)
+        self.layers = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(1024, 2048),
+            nn.BatchNorm1d(2048),
+            nn.LeakyReLU(),
+            nn.Linear(2048, 2),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x: torch.Tensor) -> ModelOutput:
+        h1 = self.fc(x).reshape(x.shape[0], 1024, 1)
+        output = ModelOutput(
+            adversarial_cost=self.layers(h1)
         )
         return output

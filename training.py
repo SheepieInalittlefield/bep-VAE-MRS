@@ -7,12 +7,20 @@ import os
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-def get_model(model_config, encoder=None, decoder=None):
-    model = VAE(
-        model_config=model_config,
-        encoder=encoder,
-        decoder=decoder
-    )
+def get_model(model_getter, model_config, encoder=None, decoder=None, discriminator=None):
+    if discriminator:
+        model = model_getter(
+            model_config=model_config,
+            encoder=encoder,
+            decoder=decoder,
+        )
+        model.set_discriminator(discriminator)
+    else:
+        model = model_getter(
+            model_config=model_config,
+            encoder=encoder,
+            decoder=decoder,
+        )
     return model
 
 
@@ -49,31 +57,46 @@ def train(model_path, pipeline, train_dataset, eval_dataset, callback=None):
 
 
 def select_model(getter, parameters):
-    from data import load_mrs
-    from architecture import MRS_encoder, MRS_decoder
-    # from pythae.models.nn.benchmarks.mnist import Encoder_ResNet_VAE_MNIST, Decoder_ResNet_AE_MNIST
-
-    train_dataset, eval_dataset, ppm = load_mrs()
-    config, model_config, path = getter(parameters)
+    from data import load_mrs_simulations, load_mrs_real
+    from architecture import ConvolutionalEncoder, ConvolutionalDecoder, DenseEncoder, DenseDecoder, DenseDiscriminator
+    if parameters['data'] == 'simulated':
+        train_dataset, eval_dataset, ppm = load_mrs_simulations()
+    elif parameters['data'] == 'real':
+        train_dataset, eval_dataset, ppm = load_mrs_real()
+    config, model_config, path, model_getter = getter(parameters)
     wandb_callback = get_callback(config, model_config)
-    encoder = MRS_encoder(model_config)
-    decoder = MRS_decoder(model_config)
-    model = get_model(model_config, encoder, decoder)
+    if parameters['architecture'] == 'convolutional':
+        encoder = ConvolutionalEncoder(model_config)
+        decoder = ConvolutionalDecoder(model_config)
+        discriminator = None
+    elif parameters['architecture'] == 'dense':
+        encoder = DenseEncoder(model_config)
+        decoder = DenseDecoder(model_config)
+        discriminator = DenseDiscriminator(model_config) if parameters['disc'] == 'custom' else None
+    else:
+        encoder = None
+        decoder = None
+        discriminator = None
+
+    model = get_model(model_getter, model_config, encoder, decoder, discriminator)
+    print(model)
     pipeline = get_pipeline(model, config)
 
     return path, pipeline, train_dataset, eval_dataset, wandb_callback, ppm
 
 
 def train_model(getter, parameters):
-    from config import custom_dis_beta_VAE_config, gen_parameters
-    from visualization import sample_model, show_generated_data, mse
+    from config import gen_parameters
+    from visualization import sample_model, mse
     from torch import mean
-
+    import time
     parameters = gen_parameters(**parameters)
     path, pipeline, train_dataset, eval_dataset, wandb_callback, ppm = select_model(getter, parameters)
 
+    start_time = time.time()
     trained_model = train(path, pipeline, train_dataset, eval_dataset, wandb_callback)
-
+    end_time = time.time()
+    print("Total Time trained: {}".format(end_time-start_time))
     gen_data = sample_model(trained_model)
     eval_data_mean = mean(eval_dataset, dim=0)
     error = mse(gen_data, eval_data_mean)

@@ -10,7 +10,7 @@ def sample_model(trained_model):
     )
 
     gen_data = normal_sampler.sample(
-        num_samples=1
+        num_samples=1000
     )
     return gen_data
 
@@ -31,42 +31,36 @@ def mse(real_data, gen_data):
     mse = np.square(real_data - gen_data).mean()
     return mse
 
-def show_generated_data(gen_data, real_data, ppm):
-    gen_data = np.reshape(gen_data, [2048,])
-    gen_data = gen_data.numpy()
-    real_data = real_data.numpy()
-    ppm = ppm[0]
-    real_data = real_data[0]
 
+def show_generated_data(gen_data, real_data, ppm):
+    gen_data = gen_data.numpy()
+    if type(real_data) != np.ndarray:
+        real_data = real_data.numpy()
+    ppm = ppm[0]
     min_ppm = 2.5
     max_ppm = 4
-    max_ind = np.amax(np.where(ppm >= min_ppm))
-    min_ind = np.amin(np.where(ppm <= max_ppm))
 
-    x_crop = real_data[min_ind:max_ind]
-    #x_crop_norm = (x_crop - x_crop.min()) / (x_crop.max() - x_crop.min())
-
-    y_crop = gen_data[min_ind:max_ind]
-    #y_crop_norm = (y_crop - y_crop.min()) / (y_crop.max() - y_crop.min())
-
-    ppm_crop = ppm[min_ind:max_ind]
-    print(gen_data.shape)
-    print(real_data.shape)
-    print(ppm.shape)
-
-    fig, ax = plt.subplots(1,2,figsize=(10, 5))
-    ax[0].plot(ppm, gen_data)
-    ax[1].plot(ppm, real_data)
-    ax[0].set_title('generated data')
-    ax[1].set_title('real data (average of eval set)')
-    ax[0].invert_xaxis()
-    ax[0].set_xlabel("ppm")
-    ax[0].set_ylim(-1, 1)
-    ax[0].vlines([min_ppm, max_ppm], -1, 1, colors="red", linestyles="--")
-    ax[1].invert_xaxis()
-    ax[1].set_xlabel("ppm")
-    ax[1].set_ylim(-1, 1)
-    ax[1].vlines([min_ppm, max_ppm], -1, 1, colors="red", linestyles="--")
+    fig, ax = plt.subplots(2, 2, figsize=(10, 10))
+    ax[0][0].plot(ppm, gen_data[0])
+    ax[0][1].plot(ppm, real_data)
+    ax[1][0].plot(ppm, gen_data[0:200].mean(axis=0))
+    ax[1][1].plot(ppm, gen_data.mean(axis=0))
+    ax[0][0].set_title('generated data, single sample')
+    ax[0][1].set_title('target spectrum')
+    ax[1][0].set_title('generated data, mean of 200 samples')
+    ax[1][1].set_title('generated data, mean of 1000 samples')
+    ax[0][0].invert_xaxis()
+    ax[0][0].set_xlabel("ppm")
+    #ax[0][0].vlines([min_ppm, max_ppm], -0.35, 0.1, colors="red", linestyles="--", linewidths=1)
+    ax[0][1].invert_xaxis()
+    ax[0][1].set_xlabel("ppm")
+    #ax[0][1].vlines([min_ppm, max_ppm], -0.35, 0.1, colors="red", linestyles="--", linewidths=1)
+    ax[1][0].invert_xaxis()
+    ax[1][0].set_xlabel("ppm")
+    #ax[1][0].vlines([min_ppm, max_ppm], -0.35, 0.1, colors="red", linestyles="--", linewidths=1)
+    ax[1][1].invert_xaxis()
+    ax[1][1].set_xlabel("ppm")
+    #ax[1][1].vlines([min_ppm, max_ppm], -0.35, 0.1, colors="red", linestyles="--", linewidths=1)
     fig.suptitle("fake vs real comparison")
 
     mse = np.square(real_data - gen_data).mean()
@@ -74,4 +68,3 @@ def show_generated_data(gen_data, real_data, ppm):
     print(f"MSE: {mse}")
 
     plt.show()
-

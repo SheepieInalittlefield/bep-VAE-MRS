@@ -2,6 +2,6 @@ torch~=2.0.0
 torchvision~=0.15.1
 h5py~=3.8.0
 numpy~=1.24.3
-scikit-learn~=1.2.2
 pythae~=0.1.1
 matplotlib~=3.7.1
+wandb~=0.15.3

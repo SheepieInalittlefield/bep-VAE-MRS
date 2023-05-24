@@ -1,33 +1,46 @@
+from config import *
+import numpy as np
 def main():
-    # from config import custom_VAE_config, gen_parameters
-    # from visualization import sample_model, show_generated_data, mse
-    # from training import train_model
-    # from data import load_mrs
-    # from torch import mean
-    #
-    # parameters = gen_parameters(lr=1e-3, batch_size=16, epochs=800, dim=12)
-    # trained_model, mse = train_model(custom_VAE_config, parameters)
-    #
-    # train_dataset, eval_dataset, ppm = load_mrs()
-    # del(train_dataset)
-    # gen_data = sample_model(trained_model)
-    # gen_data = gen_data.cpu()
-    # eval_data_mean = mean(eval_dataset, dim=0)
-    # show_generated_data(gen_data, eval_data_mean, ppm)
-    from data import load_mrs_real, load_mrs_simulations
-    train_dataset, eval_dataset, ppm = load_mrs_simulations()
-    train_dataset, eval_dataset, ppm = load_mrs_real()
+    from visualization import sample_model, show_generated_data
+    from training import train_model
+    from data import load_mrs_real, load_target
+    from torch import mean
 
+    parameters = gen_parameters(
+        output_dir='custom_VAE',
+        lr=1e-3,
+        batch_size=32,
+        epochs=400,
+        dim=32,
+        trainer='base',
+        architecture='dense',
+        disc='mlp',
+        data='real'
+    )
+    trained_model, mse = train_model(VAE_config, parameters)
+
+    target, ppm = load_target()
+    gen_data = sample_model(trained_model)
+    gen_data = gen_data.cpu()
+    if gen_data.shape[1] == 1:
+        gen_data = gen_data[:,0,:]
+    target = target.mean(axis=0)
+    show_generated_data(gen_data, target, ppm)
+
+def np_encoder(object):
+    if isinstance(object, np.generic):
+        return object.item()
 
 def parameter_search():
     from hyperparameter import test
+    from json import dumps
     runs = test()
     with open('custom_vae_search.txt', 'w') as f:
-        f.write(str(runs))
+        f.write(dumps(runs, default=np_encoder))
 
 
 if __name__ == '__main__':
-    main()
+    parameter_search()
 
 # MSE: 0.0001698292866272024
 # Train loss: 0.9325
