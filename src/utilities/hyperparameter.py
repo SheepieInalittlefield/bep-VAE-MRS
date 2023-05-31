@@ -1,6 +1,6 @@
 from numpy.random import choice, seed
-from training import train_model
-from config import VAE_config
+from src.training import train_model
+from src.config import VAE_config
 
 
 def search(getter, config_dict):
@@ -25,7 +25,7 @@ def search(getter, config_dict):
 def test():
     config_dict = {
         'method': 'random',
-        'n_runs': 1,
+        'n_runs': 100,
         'lr': [1e-2, 1e-3, 2e-3, 5e-3, 1e-4, 2e-4, 5e-4, 5e-5],
         'batch_size': [8, 16, 24, 32, 40, 48, 56, 64],
         'epochs': [200],

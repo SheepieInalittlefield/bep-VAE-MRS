@@ -1,5 +1,5 @@
 import torch
-from pythae.models import VAE, AutoModel
+from pythae.models import AutoModel
 from pythae.pipelines import TrainingPipeline
 from pythae.trainers.training_callbacks import WandbCallback
 import os
@@ -51,14 +51,17 @@ def train(model_path, pipeline, train_dataset, eval_dataset, callback=None):
         eval_data=eval_dataset,
         callbacks=callback
     )
+    return get_last_trained(model_path)
+
+def get_last_trained(model_path):
     last_training = sorted(os.listdir(model_path))[-1]
     trained_model = AutoModel.load_from_folder(os.path.join(model_path, last_training, 'final_model'))
     return trained_model
 
 
 def select_model(getter, parameters):
-    from data import load_mrs_simulations, load_mrs_real
-    from architecture import ConvolutionalEncoder, ConvolutionalDecoder, DenseEncoder, DenseDecoder, DenseDiscriminator
+    from src.data import load_mrs_simulations, load_mrs_real
+    from src.architecture import ConvolutionalEncoder, ConvolutionalDecoder, DenseEncoder, DenseDecoder, DenseDiscriminator
     if parameters['data'] == 'simulated':
         train_dataset, eval_dataset, ppm = load_mrs_simulations()
     elif parameters['data'] == 'real':
@@ -86,8 +89,8 @@ def select_model(getter, parameters):
 
 
 def train_model(getter, parameters):
-    from config import gen_parameters
-    from visualization import sample_model, mse
+    from src.config import gen_parameters
+    from src.utilities.visualization import sample_model, mse
     from torch import mean
     import time
     parameters = gen_parameters(**parameters)

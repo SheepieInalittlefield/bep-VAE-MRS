@@ -41,7 +41,7 @@ class ConvolutionalEncoder(BaseEncoder):
         self.embedding = nn.Linear(1024, self.latent_dim)
 
     def forward(self, x: torch.Tensor) -> ModelOutput:
-        h1 = self.layers(x).reshape([x.shape[0], 1, 1024])  # x.shape[0] = batch size
+        h1 = self.layers(x).reshape([x.shape[0], 1024])  # x.shape[0] = batch size
         output = ModelOutput(
             embedding=self.embedding(h1),
             log_covariance=self.log_var(h1)
@@ -103,6 +103,8 @@ class DenseEncoder(BaseEncoder):
             nn.Flatten(),
             nn.Linear(2048, 1024),
             nn.BatchNorm1d(1024),
+            nn.Linear(1024, 1024),
+            nn.BatchNorm1d(1024),
             nn.ReLU(),
 
         )
@@ -130,6 +132,8 @@ class DenseDecoder(BaseDecoder):
 
         self.layers = nn.Sequential(
             nn.Flatten(),
+            nn.Linear(1024, 1024),
+            nn.BatchNorm1d(1024),
             nn.Linear(1024, 2048),
             nn.BatchNorm1d(2048),
             nn.Identity()

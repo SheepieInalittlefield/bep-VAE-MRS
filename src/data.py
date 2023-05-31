@@ -3,7 +3,7 @@ import torchvision.datasets as datasets
 import h5py
 import numpy as np
 from torch.nn.functional import normalize
-from sklearn.preprocessing import RobustScaler
+import os.path as path
 
 
 def load_mnist():
@@ -29,7 +29,7 @@ class BasicDataset(torch.utils.data.Dataset):
 
 
 def load_mrs_simulations():
-    with h5py.File("MRS_data/sample_data.h5") as hf:
+    with h5py.File("../MRS_data/sample_data.h5") as hf:
         gt_fids = hf["ground_truth_fids"][()]  # ground truth free induction decay signal value
         ppm = hf["ppm"][()][:1]
 
@@ -52,44 +52,35 @@ def load_mrs_simulations():
     return y_train, y_eval, ppm
 
 
-def load_train_real():
-    with h5py.File("MRS_data/track_02_training_data.h5") as hf:
-        gt_fids = hf["transient_fids"][()]
-        ppm = hf["ppm"][()][:1]
-
+def pre_process_real(gt_fids, n_fids):
     gt_spec = np.fft.fftshift(np.fft.ifft(gt_fids, axis=1), axes=1)
     gt_diff_spec = np.real(gt_spec[:, :, 1, :] - gt_spec[:, :, 0, :])
 
-    y = gt_diff_spec
-    # y_max = y.max(axis=1, keepdims=True)
-    # y_mean = y.mean(axis=1, keepdims=True)
-    # y = (y - y_mean) / (y_max - y_mean)
-    y = y.mean(axis=0)
-    y = y.transpose()
-    y = np.reshape(y, [160, 1, 2048])
-    y = torch.from_numpy(y)  # at this point the shape of y is [160,1,2048]
-    y = normalize(y, p=8, dim=2)
+    y = gt_diff_spec[:, :, :n_fids]
+    print(y.shape)
+    y = y.swapaxes(0,2).swapaxes(1,2)
+    y = np.reshape(y, [y.shape[0]*y.shape[1], 1, 2048])
+    print(y.shape)
+    y_max = y.max(axis=2, keepdims=True)
+    y_mean = y.mean(axis=2, keepdims=True)
+    y = (y - y_mean) / (y_max - y_mean)
+    y = torch.from_numpy(y)  # at this point the shape of y is [n_samples ,1,2048]
+    return y
 
+
+def load_train_real():
+    with h5py.File("MRS_data/track_02_training_data.h5") as hf:
+        gt_fids = hf["transient_fids"][()]  # shape (12, 2048, 2, 160)
+        ppm = hf["ppm"][()][:1]
+
+    y = pre_process_real(gt_fids, 80)
     return y, ppm
 
 
 def load_test_real():
     with h5py.File("MRS_data/track_02_test_data.h5") as hf:
         gt_fids = hf["transient_fids"][()]
-
-    gt_spec = np.fft.fftshift(np.fft.ifft(gt_fids, axis=1), axes=1)
-    gt_diff_spec = np.real(gt_spec[:, :, 1, :] - gt_spec[:, :, 0, :])
-
-    y = gt_diff_spec
-    # y_max = y.max(axis=1, keepdims=True)
-    # y_mean = y.mean(axis=1, keepdims=True)
-    # y = (y - y_mean) / (y_max - y_mean)
-    y = y.mean(axis=0)
-    y = y.transpose()
-    y = np.reshape(y, [40, 1, 2048])
-    y = torch.from_numpy(y)  # at this point the shape of y is [40,1,2048]
-    y = normalize(y, p=8, dim=2)
-
+    y = pre_process_real(gt_fids, 40)
     return y
 
 
