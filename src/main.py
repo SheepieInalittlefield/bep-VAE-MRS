@@ -2,6 +2,7 @@ import pythae.samplers
 import torch
 
 from config import *
+from utilities.hyperparameter import *
 import numpy as np
 
 
@@ -11,19 +12,23 @@ def main():
     from data import load_target
 
     parameters = gen_parameters(
-        output_dir='../factor_VAE',
-        lr=1e-3,
-        batch_size=64,
-        epochs=500,
-        dim=2,
-        gamma=0.7,
-        trainer='adversarial',
+        output_dir='../custom_VAE',
+        lr=2e-3,
+        batch_size=16,
+        epochs=250,
+        dim=32,
+        beta=2,
+        trainer='base',
         architecture='convolutional',
+        optimizer='AdamW',
+        weight_decay = 2e-2,
+        beta1 = 0.92,
+        beta2 = 0.999,
         disc='mlp',
         data='real'
     )
-    trained_model, mse = train_model(factor_VAE_config, parameters)
-
+    trained_model, mse = train_model(VAE_config, parameters)
+    print(f"MSE: {mse}")
     target, ppm = load_target()
     gen_data = sample_model(trained_model)
     gen_data = gen_data.cpu()
@@ -33,15 +38,22 @@ def main():
     show_generated_data(gen_data, target, ppm)
 
 def test_random_stuff():
-    from src.utilities.visualization import plot_input_interpolation, plot_latent_interpolation, plot_sample
+    from src.utilities.visualization import plot_latent_interpolation, sample_model, show_generated_data
     from training import get_last_trained
-    from data import load_train_real
+    from data import load_train_real, load_target
 
-    model_path = '../factor_VAE'
+    model_path = '../info_VAE'
     model = get_last_trained(model_path)
+    target, ppm = load_target()
+    gen_data = sample_model(model)
+    gen_data = gen_data.cpu()
+    if gen_data.shape[1] == 1:
+        gen_data = gen_data[:, 0, :]
+    target = target.mean(axis=0)
+    show_generated_data(gen_data, target, ppm)
 
-    target, ppm = load_train_real()
-    plot_latent_interpolation(model, ppm)
+    #target, ppm = load_train_real()
+    #plot_latent_interpolation(model, ppm)
 
 def np_encoder(object):
     if isinstance(object, np.generic):
@@ -49,16 +61,13 @@ def np_encoder(object):
 
 
 def parameter_search():
-    from src.utilities.hyperparameter import test
-    from json import dumps
-    runs = test()
-    with open('../custom_vae_search.txt', 'w') as f:
-        f.write(dumps(runs, default=np_encoder))
+    vae_search()
 
 
 if __name__ == '__main__':
-    main()
-    test_random_stuff()
+    parameter_search()
+    #main()
+    #test_random_stuff()
 
 # MSE: 0.0001698292866272024
 # Train loss: 0.9325

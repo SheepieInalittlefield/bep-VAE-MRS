@@ -57,23 +57,20 @@ def pre_process_real(gt_fids, n_fids):
     gt_diff_spec = np.real(gt_spec[:, :, 1, :] - gt_spec[:, :, 0, :])
 
     y = gt_diff_spec[:, :, :n_fids]
-    print(y.shape)
     y = y.swapaxes(0,2).swapaxes(1,2)
     y = np.reshape(y, [y.shape[0]*y.shape[1], 1, 2048])
-    print(y.shape)
     y_max = y.max(axis=2, keepdims=True)
     y_mean = y.mean(axis=2, keepdims=True)
     y = (y - y_mean) / (y_max - y_mean)
     y = torch.from_numpy(y)  # at this point the shape of y is [n_samples ,1,2048]
     return y
 
-
 def load_train_real():
     with h5py.File("MRS_data/track_02_training_data.h5") as hf:
         gt_fids = hf["transient_fids"][()]  # shape (12, 2048, 2, 160)
         ppm = hf["ppm"][()][:1]
 
-    y = pre_process_real(gt_fids, 80)
+    y = pre_process_real(gt_fids, 160)
     return y, ppm
 
 
@@ -88,9 +85,12 @@ def load_target():
     with h5py.File("MRS_data/track_02_training_data.h5") as hf:
         target = hf["target_spectra"][()]
         ppm = hf["ppm"][()][:1]
+
     y = target
+    y_max = y.max(axis=1, keepdims=True)
+    y_mean = y.mean(axis=1, keepdims=True)
+    y = (y - y_mean) / (y_max - y_mean)
     y = torch.from_numpy(y)
-    y = normalize(y, p=8, dim=1)
 
     return y, ppm
 

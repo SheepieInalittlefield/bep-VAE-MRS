@@ -8,7 +8,7 @@ def sample_model(trained_model, sampler=pythae.samplers.NormalSampler):
     sampler = sampler(trained_model)
 
     gen_data = sampler.sample(
-        num_samples=1000
+        num_samples=100
     )
     return gen_data
 
@@ -35,7 +35,6 @@ def plot_latent_interpolation(model, ppm):
     for i in range(len(x)):
         for j in range(len(y)):
             embedding = torch.Tensor([[x[i], y[j]]])
-            print(embedding[0][0].max(), embedding[0][1].max())
             gen_data = model.decoder(embedding).reconstruction
             ax[i][j].plot(ppm[0], gen_data[0].detach())
             ax[i][j].invert_xaxis()
@@ -65,12 +64,12 @@ def show_generated_data(gen_data, real_data, ppm):
     fig, ax = plt.subplots(2, 2, figsize=(10, 10))
     ax[0][0].plot(ppm, gen_data[0])
     ax[0][1].plot(ppm, real_data)
-    ax[1][0].plot(ppm, gen_data[0:200].mean(axis=0))
+    ax[1][0].plot(ppm, gen_data[0:10].mean(axis=0))
     ax[1][1].plot(ppm, gen_data.mean(axis=0))
     ax[0][0].set_title('generated data, single sample')
     ax[0][1].set_title('target spectrum')
-    ax[1][0].set_title('generated data, mean of 200 samples')
-    ax[1][1].set_title('generated data, mean of 1000 samples')
+    ax[1][0].set_title('generated data, mean of 10 samples')
+    ax[1][1].set_title('generated data, mean of 100 samples')
     ax[0][0].invert_xaxis()
     ax[0][0].set_xlabel("ppm")
     # ax[0][0].vlines([min_ppm, max_ppm], -0.35, 0.1, colors="red", linestyles="--", linewidths=1)
@@ -84,9 +83,5 @@ def show_generated_data(gen_data, real_data, ppm):
     ax[1][1].set_xlabel("ppm")
     # ax[1][1].vlines([min_ppm, max_ppm], -0.35, 0.1, colors="red", linestyles="--", linewidths=1)
     fig.suptitle("fake vs real comparison")
-
-    mse = np.square(real_data - gen_data).mean()
-
-    print(f"MSE: {mse}")
 
     plt.show()

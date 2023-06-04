@@ -10,10 +10,9 @@ def trainer_config(parameters):
             per_device_eval_batch_size=parameters['batch_size'],
             num_epochs=parameters['epochs'],  # Change this to train the model a bit more
             optimizer_cls=parameters['optimizer'],
-            optimizer_params={"weight_decay": 0.05, "betas": (0.91, 0.99)} if parameters[
-                                                                                  'optimizer'] == 'AdamW' else None,
+            optimizer_params={"weight_decay": parameters["weight_decay"],
+                              "betas": (parameters['beta1'], parameters['beta2'])},
             no_cuda=False,
-            seed=17
         )
     elif parameters['trainer'] == 'adversarial':
         config = trainers.AdversarialTrainerConfig(
@@ -24,10 +23,10 @@ def trainer_config(parameters):
             per_device_eval_batch_size=parameters['batch_size'],
             num_epochs=parameters['epochs'],  # Change this to train the model a bit more
             optimizer_cls=parameters['optimizer'],
-            optimizer_params={"weight_decay": 0.05, "betas": (0.91, 0.99)} if parameters[
-                                                                                  'optimizer'] == 'AdamW' else None,
+            optimizer_params={"weight_decay": parameters["weight_decay"],
+                              "betas": (parameters['beta1'], parameters['beta2'])},
+
             no_cuda=False,
-            seed=17
         )
     return config
 
@@ -157,7 +156,15 @@ def gen_parameters(lr=2e-4, batch_size=32, epochs=250, optimizer='AdamW', dim=32
             parameters[kwarg] = kwargs[kwarg]
     return parameters
 
+def duck_config(parameters):
+    config = trainer_config(parameters)
 
+    model_config = models.VAEConfig(
+        input_dim=(1, 2048),
+        latent_dim=parameters['dim'],
+        reconstruction_loss='mse',
+    )
+    return config, model_config, parameters['output_dir'], models.VAE
 def wandb_config_VAE(wandb_config):
     config = trainers.BaseTrainerConfig(
         output_dir='wandb_sweeps',
