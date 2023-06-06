@@ -1,9 +1,15 @@
+import os
 import torch
 from pythae.models import AutoModel
 from pythae.pipelines import TrainingPipeline
 from pythae.trainers.training_callbacks import WandbCallback
-import os
-
+from src.data import load_mrs_simulations, load_mrs_real
+from src.architecture import ConvolutionalEncoder, ConvolutionalDecoder, DenseEncoder, DenseDecoder, \
+    DenseDiscriminator
+from src.config import gen_parameters
+from src.utilities.visualization import sample_model, mse
+from torch import mean
+import time
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
@@ -53,6 +59,7 @@ def train(model_path, pipeline, train_dataset, eval_dataset, callback=None):
     )
     return get_last_trained(model_path)
 
+
 def get_last_trained(model_path):
     last_training = sorted(os.listdir(model_path))[-1]
     trained_model = AutoModel.load_from_folder(os.path.join(model_path, last_training, 'final_model'))
@@ -60,12 +67,10 @@ def get_last_trained(model_path):
 
 
 def select_model(getter, parameters):
-    from src.data import load_mrs_simulations, load_mrs_real
-    from src.architecture import ConvolutionalEncoder, ConvolutionalDecoder, DenseEncoder, DenseDecoder, DenseDiscriminator
-    if parameters['data'] == 'simulated':
-        train_dataset, eval_dataset, ppm = load_mrs_simulations()
-    elif parameters['data'] == 'real':
-        train_dataset, eval_dataset, ppm = load_mrs_real()
+    #if parameters['data'] == 'simulated':
+        #train_dataset, eval_dataset, ppm = load_mrs_simulations()
+    if parameters['data'] == 'real':
+        train_dataset, eval_dataset, test_dataset, ppm = load_mrs_real()
     config, model_config, path, model_getter = getter(parameters)
     wandb_callback = get_callback(config, model_config)
     if parameters['architecture'] == 'convolutional':
@@ -85,22 +90,17 @@ def select_model(getter, parameters):
     print(model)
     pipeline = get_pipeline(model, config)
 
-    return path, pipeline, train_dataset, eval_dataset, wandb_callback, ppm
+    return path, pipeline, train_dataset, eval_dataset, test_dataset, wandb_callback, ppm
 
 
 def train_model(getter, parameters):
-    from src.config import gen_parameters
-    from src.utilities.visualization import sample_model, mse
-    from torch import mean
-    import time
-    parameters = gen_parameters(**parameters)
-    path, pipeline, train_dataset, eval_dataset, wandb_callback, ppm = select_model(getter, parameters)
+    path, pipeline, train_dataset, eval_dataset, test_dataset, wandb_callback, ppm = select_model(getter, parameters)
 
     start_time = time.time()
     trained_model = train(path, pipeline, train_dataset, eval_dataset, wandb_callback)
     end_time = time.time()
-    print("Total Time trained: {}".format(end_time-start_time))
+    print("Total Time trained: {}".format(end_time - start_time))
     gen_data = sample_model(trained_model)
-    eval_data_mean = mean(eval_dataset, dim=0)
-    error = mse(gen_data, eval_data_mean)
+    test_data_mean = mean(test_dataset, dim=0)
+    error = mse(gen_data, test_data_mean)
     return trained_model, float(error)

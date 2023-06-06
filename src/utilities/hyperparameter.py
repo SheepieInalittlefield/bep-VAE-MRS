@@ -2,14 +2,15 @@ from numpy.random import choice, seed
 from src.training import train_model
 from src.config import VAE_config
 import numpy as np
+import time
+from json import dumps
 
 def np_encoder(object):
     if isinstance(object, np.generic):
         return object.item()
 
 def dump_to_file(runs, path):
-    from json import dumps
-    path = path + '.txt'
+    path = "../" + path + '.txt'
     print(path)
     with open(path, 'w') as f:
         f.write(dumps(runs, default=np_encoder))
@@ -22,6 +23,7 @@ def search(getter, config_dict):
 
     runs = []
     if method == 'random':
+        start = time.time()
         while n_runs:
             parameters = {}
             seed()
@@ -31,6 +33,8 @@ def search(getter, config_dict):
             parameters['epochs'] = parameters['epochs'] * parameters['batch_size']
             parameters['output_dir'] = output_dir
             runs.append([parameters, train_model(getter, parameters)[1]])
+        end = time.time()
+        print(f"total time for search: {end-start}")
     dump_to_file(runs, output_dir)
     return 1
 
@@ -47,7 +51,7 @@ def vae_search():
         'beta1': [0.88, 0.90, 0.92],
         'beta2': [0.99, 0.999],
         'trainer': ['base'],
-        'optimizer': ['AdamW', 'SGD'],
+        'optimizer': ['AdamW'],
         'architecture': ['convolutional'],
         'disc': ['mlp'],
         'data': ['real'],

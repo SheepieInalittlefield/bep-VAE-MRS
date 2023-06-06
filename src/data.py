@@ -66,23 +66,24 @@ def pre_process_real(gt_fids, n_fids):
     return y
 
 def load_train_real():
-    with h5py.File("MRS_data/track_02_training_data.h5") as hf:
+    with h5py.File("../MRS_data/track_02_training_data.h5") as hf:
         gt_fids = hf["transient_fids"][()]  # shape (12, 2048, 2, 160)
         ppm = hf["ppm"][()][:1]
-
     y = pre_process_real(gt_fids, 160)
-    return y, ppm
+    y_train = y[:1800]
+    y_eval = y[1800:]
+    return y_train, y_eval, ppm
 
 
 def load_test_real():
-    with h5py.File("MRS_data/track_02_test_data.h5") as hf:
+    with h5py.File("../MRS_data/track_02_test_data.h5") as hf:
         gt_fids = hf["transient_fids"][()]
     y = pre_process_real(gt_fids, 40)
     return y
 
 
 def load_target():
-    with h5py.File("MRS_data/track_02_training_data.h5") as hf:
+    with h5py.File("../MRS_data/track_02_training_data.h5") as hf:
         target = hf["target_spectra"][()]
         ppm = hf["ppm"][()][:1]
 
@@ -96,7 +97,7 @@ def load_target():
 
 
 def load_mrs_real():
-    y_train, ppm = load_train_real()
+    y_train, y_eval, ppm = load_train_real()
     y_test = load_test_real()
 
-    return y_train, y_test, ppm
+    return y_train, y_eval, y_test, ppm
