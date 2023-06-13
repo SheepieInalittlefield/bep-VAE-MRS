@@ -95,30 +95,20 @@ class DenseEncoder(BaseEncoder):
         self.latent_dim = args.latent_dim
 
         self.layers = nn.Sequential(
-            nn.Conv1d(self.n_channels, 2, 3, 2, padding=1),
-            nn.BatchNorm1d(2),
-            nn.LeakyReLU(),
-            nn.Conv1d(2, 4, 3, 2, padding=1),
-            nn.BatchNorm1d(4),
-            nn.LeakyReLU(),
-            nn.Conv1d(4, 8, 3, 2, padding=1),
-            nn.BatchNorm1d(8),
-            nn.LeakyReLU(),
-            nn.Conv1d(8, 16, 3, 2, padding=1),
-            nn.BatchNorm1d(16),
-            nn.LeakyReLU(),
             nn.Flatten(),
             nn.Linear(2048, 1024),
             nn.BatchNorm1d(1024),
-            nn.ReLU(),
-
+            nn.LeakyReLU(),
+            nn.Linear(1024, 512),
+            nn.BatchNorm1d(512),
+            nn.LeakyReLU(),
         )
 
-        self.log_var = nn.Linear(1024, self.latent_dim)
-        self.embedding = nn.Linear(1024, self.latent_dim)
+        self.log_var = nn.Linear(512, self.latent_dim)
+        self.embedding = nn.Linear(512, self.latent_dim)
 
     def forward(self, x: torch.Tensor) -> ModelOutput:
-        h1 = self.layers(x).reshape([x.shape[0], 1024])  # x.shape[0] = batch size
+        h1 = self.layers(x).reshape([x.shape[0], 512])  # x.shape[0] = batch size
         output = ModelOutput(
             embedding=self.embedding(h1),
             log_covariance=self.log_var(h1)
@@ -133,21 +123,21 @@ class DenseDecoder(BaseDecoder):
         self.latent_dim = args.latent_dim
         self.n_channels = 1
 
-        self.fc = nn.Linear(self.latent_dim, 1024)
 
         self.layers = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(1024, 1024),
-            nn.BatchNorm1d(1024),
-            nn.Linear(1024, 2048),
+            nn.Linear(self.latent_dim, 512),
+            nn.LeakyReLU(),
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.LeakyReLU(),
+            nn.Linear(512, 2048),
             nn.BatchNorm1d(2048),
-            nn.Identity()
+            nn.Identity(),
         )
 
     def forward(self, z: torch.Tensor) -> ModelOutput:
-        h1 = self.fc(z).reshape(z.shape[0], 1024, 1)
         output = ModelOutput(
-            reconstruction=self.layers(h1)
+            reconstruction=self.layers(z)
         )
         return output
 
@@ -159,19 +149,17 @@ class DenseDiscriminator(BaseDiscriminator):
         self.latent_dim = args.latent_dim
         self.n_channels = 1
 
-        self.fc = nn.Linear(self.latent_dim, 1024)
         self.layers = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(1024, 2048),
-            nn.BatchNorm1d(2048),
+            nn.Linear(2048, 512),
             nn.LeakyReLU(),
-            nn.Linear(2048, 2),
+            nn.Linear(512,256),
+            nn.LeakyReLU(),
+            nn.Linear(256, 1),
             nn.Sigmoid()
         )
 
-    def forward(self, x: torch.Tensor) -> ModelOutput:
-        h1 = self.fc(x).reshape(x.shape[0], 1024, 1)
+    def forward(self, x: torch.Tensor, output_layer_levels=3) -> ModelOutput:
         output = ModelOutput(
-            adversarial_cost=self.layers(h1)
+            adversarial_cost=self.layers(x)
         )
         return output

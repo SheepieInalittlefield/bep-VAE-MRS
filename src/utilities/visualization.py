@@ -2,9 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pythae.samplers
 import torch
+from random import randint
 
-
-def sample_model(trained_model, Sampler=pythae.samplers.NormalSampler, config=None, train_data=None, n=960):
+def sample_model(trained_model, Sampler=pythae.samplers.NormalSampler, config=None, train_data=None, n=480):
     if config:
         sampler = Sampler(trained_model, config)
         sampler.fit(train_data)
@@ -29,6 +29,19 @@ def plot_input_interpolation(trained_model, ppm, start, stop):
     plt.show()
 
 
+def plot_some_generated_samples(gen_data, ppm):
+    fig, ax = plt.subplots(4, 4, figsize=(16, 16))
+    n = 0
+    for i in ax:
+        for j in i:
+            j.plot(ppm[0], gen_data[n])
+            j.invert_xaxis()
+            j.set_ylim(-1, 1)
+            n += 1
+    fig.show()
+    return 1
+
+
 def plot_2d_latent_interpolation(model, ppm):
     x = np.linspace(-5, 5, 5)
     y = np.linspace(-5, 5, 5)
@@ -42,21 +55,21 @@ def plot_2d_latent_interpolation(model, ppm):
             ax[i][j].set_title(f"x = {x[i]}, y = {y[j]}")
     plt.show()
 
+
 def plot_static_latent_interpolation(model, test_data, ppm):
     x = np.linspace(-10, 10, 8)
     num_rows = 8
-    fig, ax = plt.subplots(nrows=num_rows, ncols=8, figsize=(20,20))
-    test_data = test_data.type(torch.float32)
+    fig, ax = plt.subplots(nrows=num_rows, ncols=8, figsize=(30, 20))
+    test_data = test_data.type(torch.float32).to("cuda:0")
     for i in range(num_rows):
         for j in range(len(x)):
-            embedding = model.embed(test_data[:1, :, :])
+            embedding = model.embed(test_data[:2, :, :])
             embedding[0][i] = x[j]
-            gen_data = model.decoder(embedding).reconstruction
-            ax[i][j].plot(ppm[0], gen_data[0][0].cpu().detach())
+            gen_data = model.decoder(embedding[:1]).reconstruction
+            ax[i][j].plot(ppm[0], gen_data[0].cpu().detach())
             ax[i][j].invert_xaxis()
-            ax[i][j].set_ylim(-1, 0.3)
+            ax[i][j].set_ylim(-1, 1)
     plt.show()
-
 
 
 def plot_sample(sample, ppm):
@@ -77,24 +90,23 @@ def show_generated_data(gen_data, real_data, target_spectrum, ppm):
     if type(real_data) != np.ndarray:
         real_data = real_data.numpy()
     ppm = ppm[0]
-
-    fig, ax = plt.subplots(2, 2, figsize=(10, 10))
-    ax[0][0].plot(ppm, gen_data[0])
-    ax[0][1].plot(ppm, target_spectrum)
+    sample = randint(0, 480)
+    fig, ax = plt.subplots(2, 2, figsize=(15, 10))
+    ax[0][0].plot(ppm, gen_data[sample])
+    ax[0][1].plot(ppm, real_data[0][0])
     ax[1][0].plot(ppm, gen_data[:].mean(axis=0))
-    ax[1][1].plot(ppm, real_data[:][0].mean(axis=0))
+    ax[1][1].plot(ppm, real_data.mean(axis=0)[0])
     ax[0][0].set_title('generated data, single sample')
-    ax[0][1].set_title('target spectrum')
+    ax[0][1].set_title('real data, single sample')
     ax[1][0].set_title('generated data, mean of 480 samples')
-    ax[1][1].set_title('real data, mean of 960 samples')
-    ax[0][0].invert_xaxis()
-    ax[0][0].set_xlabel("ppm")
-    ax[0][1].invert_xaxis()
-    ax[0][1].set_xlabel("ppm")
-    ax[1][0].invert_xaxis()
-    ax[1][0].set_xlabel("ppm")
-    ax[1][1].invert_xaxis()
-    ax[1][1].set_xlabel("ppm")
+    ax[1][1].set_title('real data, mean of 480 samples')
+    for i in ax:
+        for j in i:
+            j.set_ylim(-1,1)
+            j.set_xlim(0,4)
+            j.invert_xaxis()
+            j.set_xlabel("ppm")
+
     fig.suptitle("fake vs real comparison")
 
     plt.show()

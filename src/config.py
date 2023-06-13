@@ -28,6 +28,22 @@ def trainer_config(parameters):
 
             no_cuda=False,
         )
+    elif parameters['trainer'] == 'coupled':
+        config = trainers.CoupledOptimizerAdversarialTrainerConfig(
+            output_dir=parameters['output_dir'],
+            encoder_learning_rate=parameters['lr'],
+            decoder_learning_rate=parameters['lr'],
+            discriminator_learning_rate=parameters['disc_lr'],
+            per_device_train_batch_size=parameters['batch_size'],
+            per_device_eval_batch_size=parameters['batch_size'],
+            num_epochs=parameters['epochs'],  # Change this to train the model a bit more
+            optimizer_cls=parameters['optimizer'],
+            optimizer_params={"weight_decay": parameters["weight_decay"],
+                              "betas": (parameters['beta1'], parameters['beta2'])},
+            discriminator_optimizer_cls=parameters['optimizer'],
+
+            no_cuda=False,
+        )
     return config
 
 
@@ -149,6 +165,32 @@ def info_VAE_config(parameters):
     return config, model_config, parameters['output_dir'], models.INFOVAE_MMD
 
 
+def IWAE_config(parameters):
+    config = trainer_config(parameters)
+
+    model_config = models.IWAEConfig(
+        input_dim=(1, 2048),
+        latent_dim=parameters['dim'],
+        reconstruction_loss='mse',
+        number_samples=parameters['n_samples']
+    )
+    return config, model_config, parameters['output_dir'], models.IWAE
+
+
+def VAEGAN_config(parameters):
+    config = trainer_config(parameters)
+
+    model_config = models.VAEGANConfig(
+        input_dim=(1, 2048),
+        latent_dim=parameters['dim'],
+        reconstruction_loss='mse',
+        adversarial_loss_scale=parameters['adversarial_scale'],
+        reconstruction_layer=parameters['reconstruction_depth'],
+    )
+    return config, model_config, parameters['output_dir'], models.VAEGAN
+
+
+
 def gen_parameters(lr=2e-4, batch_size=32, epochs=250, optimizer='AdamW', dim=32, **kwargs):
     parameters = {'lr': lr, 'batch_size': batch_size, 'epochs': epochs, 'optimizer': optimizer, 'dim': dim}
     if kwargs:
@@ -156,15 +198,6 @@ def gen_parameters(lr=2e-4, batch_size=32, epochs=250, optimizer='AdamW', dim=32
             parameters[kwarg] = kwargs[kwarg]
     return parameters
 
-def duck_config(parameters):
-    config = trainer_config(parameters)
-
-    model_config = models.VAEConfig(
-        input_dim=(1, 2048),
-        latent_dim=parameters['dim'],
-        reconstruction_loss='mse',
-    )
-    return config, model_config, parameters['output_dir'], models.VAE
 def wandb_config_VAE(wandb_config):
     config = trainers.BaseTrainerConfig(
         output_dir='wandb_sweeps',

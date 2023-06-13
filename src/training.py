@@ -8,7 +8,7 @@ from src.architecture import ConvolutionalEncoder, ConvolutionalDecoder, DenseEn
     DenseDiscriminator
 from src.config import gen_parameters
 from src.utilities.visualization import sample_model, mse
-from torch import mean
+from numpy import mean
 import time
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -101,6 +101,9 @@ def train_model(getter, parameters):
     end_time = time.time()
     print("Total Time trained: {}".format(end_time - start_time))
     gen_data = sample_model(trained_model)
-    test_data_mean = mean(test_dataset, dim=0)
-    error = mse(gen_data, test_data_mean)
+    error = []
+    for i in range(test_dataset.shape[0]):
+        for j in range(gen_data.shape[0]):
+            error.append(mse(gen_data[j], test_dataset[i]))
+    error = mean(error)
     return trained_model, float(error)
