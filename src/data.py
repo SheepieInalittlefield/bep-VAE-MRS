@@ -65,7 +65,6 @@ def pre_process_train(gt_fids, n_samples):
     y = y.swapaxes(1,2)
     #y = y.swapaxes(0,2).swapaxes(1,2)
     #y = np.reshape(y, [y.shape[0]*y.shape[1], 1, 2048])
-    print('test: ', y.shape)
     y_max = y.max(axis=2, keepdims=True)
     y_mean = y.mean(axis=2, keepdims=True)
     y = (y - y_mean) / (y_max - y_mean)
@@ -75,12 +74,6 @@ def pre_process_train(gt_fids, n_samples):
 
 def pre_process_test(gt_fids):
     spec = np.fft.fftshift(np.fft.ifft(gt_fids, axis=1), axes=1)
-    test = np.transpose(spec, (0,3,2,1))
-    print(test.shape)
-    test = np.real(np.reshape(test, (test.shape[0]*test.shape[1], test.shape[2], test.shape[3])))
-    print(test.shape)
-    test_on = test[:,0,:]
-    print(test_on.shape)
     spec_on = spec[:,:,0,:40].mean(axis=2, keepdims=True)
     spec_off = spec[:,:,1,:40].mean(axis=2, keepdims=True)
     y = np.real(spec_off - spec_on)

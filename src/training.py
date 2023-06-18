@@ -32,14 +32,14 @@ def get_model(model_getter, model_config, encoder=None, decoder=None, discrimina
 
 def get_callback(training_config, model_config):
     callbacks = []
-    wandb_cb = WandbCallback()
-    wandb_cb.setup(
-        training_config=training_config,
-        model_config=model_config,
-        project_name="bep-mia",
-        entity_name="sheepieinalittlefield"
-    )
-    callbacks.append(wandb_cb)
+    #wandb_cb = WandbCallback()
+    #wandb_cb.setup(
+    #    training_config=training_config,
+    #    model_config=model_config,
+    #    project_name="bep-mia",
+    #    entity_name="sheepieinalittlefield"
+    #)
+    #callbacks.append(wandb_cb)
     return callbacks
 
 
@@ -97,13 +97,8 @@ def train_model(getter, parameters):
     path, pipeline, train_dataset, eval_dataset, test_dataset, wandb_callback, ppm = select_model(getter, parameters)
 
     start_time = time.time()
-    trained_model = train(path, pipeline, train_dataset, eval_dataset, wandb_callback)
+    trained_model = train(path, pipeline, train_dataset, eval_dataset) #, wandb_callback)
     end_time = time.time()
     print("Total Time trained: {}".format(end_time - start_time))
-    gen_data = sample_model(trained_model)
-    error = []
-    for i in range(test_dataset.shape[0]):
-        for j in range(gen_data.shape[0]):
-            error.append(mse(gen_data[j], test_dataset[i]))
-    error = mean(error)
+    error = mse(trained_model)
     return trained_model, float(error)

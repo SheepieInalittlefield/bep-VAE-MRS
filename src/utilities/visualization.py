@@ -3,6 +3,7 @@ import numpy as np
 import pythae.samplers
 import torch
 from random import randint
+from data import load_test_real, load_target
 
 def sample_model(trained_model, Sampler=pythae.samplers.NormalSampler, config=None, train_data=None, n=480):
     if config:
@@ -16,6 +17,40 @@ def sample_model(trained_model, Sampler=pythae.samplers.NormalSampler, config=No
     return gen_data
 
 
+def get_reconstruction(model, data):
+    reconstruction = model.predict(data).recon_x
+    return reconstruction
+
+def get_embedding(model, data: torch.float32):
+    embeddings = model.embed(data)
+    return embeddings
+
+
+def show_reconstructions(model, real_data, ppm):
+    model = model.cpu()
+    real_data = real_data.type(torch.float32)
+    gen_data = get_reconstruction(model, real_data).detach()
+    ppm = ppm[0]
+
+    fig, ax = plt.subplots(2, 2, figsize=(15, 10))
+    ax[0][0].plot(ppm, gen_data[3])
+    ax[0][1].plot(ppm, real_data[3][0])
+    ax[1][0].plot(ppm, gen_data[:].mean(axis=0))
+    ax[1][1].plot(ppm, real_data.mean(axis=0)[0])
+    ax[0][0].set_title('reconstruction')
+    ax[0][1].set_title('real data')
+    ax[1][0].set_title('reconstructions, averaged')
+    ax[1][1].set_title('real data, averaged')
+    for i in ax:
+        for j in i:
+            j.set_ylim(-1,1)
+            j.set_xlim(0,4)
+            j.invert_xaxis()
+            j.set_xlabel("ppm")
+
+    fig.suptitle("fake vs real comparison")
+
+    plt.show()
 def plot_input_interpolation(trained_model, ppm, start, stop):
     torch.zeros([16, 1, 2048])
     torch.ones([16, 1, 2048])
@@ -79,10 +114,14 @@ def plot_sample(sample, ppm):
     plt.show()
 
 
-def mse(real_data, gen_data):
-    real_data = real_data.cpu()
-    mse = np.square(real_data - gen_data).mean()
-    return mse
+def mse(model):
+    test_data = load_test_real().type(torch.float32)
+
+    reconstruction = get_reconstruction(model, test_data).detach()
+    mse = []
+    for i in range(test_data.shape[0]):
+        mse.append(np.square(test_data[i][0]-reconstruction[i]).mean())
+    return np.mean(mse)
 
 
 def show_generated_data(gen_data, real_data, target_spectrum, ppm):
