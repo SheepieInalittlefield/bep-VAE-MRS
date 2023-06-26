@@ -4,67 +4,44 @@ import h5py
 import numpy as np
 from torch.nn.functional import normalize
 import os.path as path
-
-
-def load_mnist():
-    mnist_trainset = datasets.MNIST(root='../data', train=True, download=True, transform=None
-                                    )
-    train_dataset = mnist_trainset.data[:-10000].reshape(-1, 1, 28, 28) / 255.
-    eval_dataset = mnist_trainset.data[-10000:].reshape(-1, 1, 28, 28) / 255.
-    return train_dataset, eval_dataset
-
-
-class BasicDataset(torch.utils.data.Dataset):
-    def __init__(self, y, ppm):
-        super(BasicDataset, self).__init__()
-
-        self.y = y
-        self.ppm = ppm
-
-    def __len__(self):
-        return int(self.y.shape[0])
-
-    def __getitem__(self, idx):
-        return self.y[idx], self.ppm[idx]
+import data_corruption
 
 
 def load_mrs_simulations():
-    with h5py.File("../MRS_data/sample_data.h5") as hf:
+    with h5py.File("../MRS_data/simulated_ground_truths.h5") as hf:
         gt_fids = hf["ground_truth_fids"][()]  # ground truth free induction decay signal value
         ppm = hf["ppm"][()][:1]
-
-    gt_spec = np.fft.fftshift(np.fft.ifft(gt_fids, axis=1), axes=1)
-    gt_diff_spec = np.real(gt_spec[:, :, 1] - gt_spec[:, :, 0])
-
-    y = gt_diff_spec
-    y_max = y.max(axis=1, keepdims=True)
-    y_mean = y.mean()
-    y = (y - y_mean) / (y_max - y_mean)
-
-    y_train = y[:int(y.shape[0] * 0.8)]
-    y_eval = y[int(y.shape[0] * 0.8):]
-
-    y_train = torch.from_numpy(y_train)
-    y_eval = torch.from_numpy(y_eval)
-
-    y_train = y_train.reshape(160, 1, 2048)
-    y_eval = y_eval.reshape(40, 1, 2048)
+        t = hf['t'][()]
+    gt_fids = gt_fids[:960]
+    t = t[:960]
+    y = pre_process_simul(gt_fids, t)
+    y_train = y
+    y_eval = y
     return y_train, y_eval, ppm
 
 
-def pre_process_train(gt_fids, n_samples):
-    spec = np.fft.fftshift(np.fft.ifft(gt_fids, axis=1), axes=1)
-    spec_on = spec[:,:,0,:160]
-    spec_on = np.array(np.split(spec_on, [40,80,120], axis=2))
-    spec_on = np.concatenate([i for i in spec_on]).mean(axis=2, keepdims=True)
-    spec_off = spec[:,:,1,:160]
-    spec_off = np.array(np.split(spec_off, [40,80,120], axis=2))
-    spec_off = np.concatenate([i for i in spec_off]).mean(axis=2, keepdims=True)
+def pre_process_simul(gt_fids, t, averaged=True):
+    # add noise
+    tm = data_corruption.TransientMaker(gt_fids, t, transients=40)
+    tm.add_random_amplitude_noise(15,5)
+    tm.add_random_frequency_noise(5, 5)
+    tm.add_random_phase_noise(20, 10)
+    fids = tm.fids
+
+    spec = np.fft.fftshift(np.fft.ifft(fids, axis=1), axes=1)
+    spec_on = spec[:, :, 0, :40]
+    if averaged:
+        spec_on = spec_on.mean(axis=2, keepdims=True)
+    spec_off = spec[:, :, 1, :40]
+    if averaged:
+        spec_off = spec_off.mean(axis=2, keepdims=True)
 
     y = np.real(spec_off - spec_on)
-    y = y.swapaxes(1,2)
-    #y = y.swapaxes(0,2).swapaxes(1,2)
-    #y = np.reshape(y, [y.shape[0]*y.shape[1], 1, 2048])
+    if averaged:
+        y = y.swapaxes(1, 2)
+    else:
+        y = y.swapaxes(0, 2).swapaxes(1, 2)
+        y = np.reshape(y, [y.shape[0] * y.shape[1], 1, 2048])
     y_max = y.max(axis=2, keepdims=True)
     y_mean = y.mean(axis=2, keepdims=True)
     y = (y - y_mean) / (y_max - y_mean)
@@ -72,38 +49,90 @@ def pre_process_train(gt_fids, n_samples):
     return y
 
 
-def pre_process_test(gt_fids):
+def pre_process_train(gt_fids, averaged, quarter):
     spec = np.fft.fftshift(np.fft.ifft(gt_fids, axis=1), axes=1)
-    spec_on = spec[:,:,0,:40].mean(axis=2, keepdims=True)
-    spec_off = spec[:,:,1,:40].mean(axis=2, keepdims=True)
+
+    spec_on = spec[:, :, 0, :160]
+    if averaged:
+        spec_on = np.array(np.split(spec_on, [40, 80, 120], axis=2))
+        if quarter:
+            spec_on = spec_on[:1]
+        spec_on = np.concatenate([i for i in spec_on]).mean(axis=2, keepdims=True)
+
+    spec_off = spec[:, :, 1, :160]
+    if averaged:
+        spec_off = np.array(np.split(spec_off, [40, 80, 120], axis=2))
+        if quarter:
+            spec_off = spec_off[:1]
+        spec_off = np.concatenate([i for i in spec_off]).mean(axis=2, keepdims=True)
+
+    if not averaged and quarter:
+        spec_on = spec_on[:, :, :40]
+        spec_off = spec_off[:, :, :40]
+
     y = np.real(spec_off - spec_on)
-    y = y.swapaxes(1, 2)
+    if averaged:
+        y = y.swapaxes(1, 2)
+        print(y.shape)
+    else:
+        y = y.swapaxes(0, 2).swapaxes(1, 2)
+        y = np.reshape(y, [y.shape[0] * y.shape[1], 1, 2048])
     y_max = y.max(axis=2, keepdims=True)
     y_mean = y.mean(axis=2, keepdims=True)
     y = (y - y_mean) / (y_max - y_mean)
     y = torch.from_numpy(y)  # at this point the shape of y is [12, 1, 2048]
     return y
 
-def load_train_real():
+
+def pre_process_test(gt_fids, averaged):
+    spec = np.fft.fftshift(np.fft.ifft(gt_fids, axis=1), axes=1)
+    if averaged:
+        spec_on = spec[:, :, 0, :40].mean(axis=2, keepdims=True)
+        spec_off = spec[:, :, 1, :40].mean(axis=2, keepdims=True)
+    else:
+        spec_on = spec[:, :, 0, :]
+        spec_off = spec[:, :, 1, :]
+    y = np.real(spec_off - spec_on)
+    if averaged:
+        y = y.swapaxes(1, 2)
+    else:
+        y = y.swapaxes(0, 2).swapaxes(1, 2)
+        y = np.reshape(y, [y.shape[0] * y.shape[1], 1, 2048])
+
+    y_max = y.max(axis=2, keepdims=True)
+    y_mean = y.mean(axis=2, keepdims=True)
+    y = (y - y_mean) / (y_max - y_mean)
+    y = torch.from_numpy(y)  # at this point the shape of y is [12, 1, 2048]
+    return y
+
+
+def load_train_real(average, quarter):
     with h5py.File("../MRS_data/track_02_training_data.h5") as hf:
         gt_fids = hf["transient_fids"][()]  # shape (12, 2048, 2, 160)
         ppm = hf["ppm"][()][:1]
-    y = pre_process_train(gt_fids, 48)
-    y_train = y[:40]
-    y_eval = y[40:]
+    y = pre_process_train(gt_fids, average, quarter)
+    if average and not quarter:
+        y_train = y[:40]
+        y_eval = y[40:]
+    elif average and quarter:
+        y_train = y[:10]
+        y_eval = y[10:]
+    elif not average:
+        y_train = y[:1800]
+        y_eval = y[1800:]
     return y_train, y_eval, ppm
 
 
-def load_test_real():
+def load_test_real(averaged):
     with h5py.File("../MRS_data/track_02_test_data.h5") as hf:
         gt_fids = hf["transient_fids"][()]
-    y = pre_process_test(gt_fids)
+    y = pre_process_test(gt_fids, averaged)
     return y
 
 
 def load_target():
     with h5py.File("../MRS_data/track_02_training_data.h5") as hf:
-        target = hf["target_spectra"][()] # shape (12, 1, 2048)
+        target = hf["target_spectra"][()]  # shape (12, 1, 2048)
         ppm = hf["ppm"][()][:1]
 
     y = target
@@ -115,8 +144,8 @@ def load_target():
     return y, ppm
 
 
-def load_mrs_real():
-    y_train, y_eval, ppm = load_train_real()
-    y_test = load_test_real()
+def load_mrs_real(averaged=True, quarter=False):
+    y_train, y_eval, ppm = load_train_real(averaged, quarter)
+    y_test = load_test_real(averaged)
 
     return y_train, y_eval, y_test, ppm

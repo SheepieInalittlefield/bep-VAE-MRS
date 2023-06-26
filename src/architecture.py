@@ -85,7 +85,6 @@ class ConvolutionalDecoder(BaseDecoder):
         return output
 
 
-# not actually dense, cry about it
 class DenseEncoder(BaseEncoder):
     def __init__(self, args=None):
         BaseDecoder.__init__(self)
@@ -127,10 +126,10 @@ class DenseDecoder(BaseDecoder):
         self.layers = nn.Sequential(
             nn.Linear(self.latent_dim, 512),
             nn.LeakyReLU(),
-            nn.Linear(512, 512),
-            nn.BatchNorm1d(512),
+            nn.Linear(512, 1024),
+            nn.BatchNorm1d(1024),
             nn.LeakyReLU(),
-            nn.Linear(512, 2048),
+            nn.Linear(1024, 2048),
             nn.BatchNorm1d(2048),
             nn.Identity(),
         )

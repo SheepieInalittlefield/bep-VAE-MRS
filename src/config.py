@@ -1,5 +1,5 @@
 from pythae import trainers, models
-
+from os import path
 
 def trainer_config(parameters):
     if parameters['trainer'] == 'base':
@@ -196,6 +196,7 @@ def gen_parameters(lr=2e-4, batch_size=32, epochs=250, optimizer='AdamW', dim=32
     if kwargs:
         for kwarg in kwargs:
             parameters[kwarg] = kwargs[kwarg]
+    parameters['output_dir'] = path.join('../Models', parameters['output_dir'])
     return parameters
 
 def wandb_config_VAE(wandb_config):

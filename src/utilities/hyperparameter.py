@@ -37,12 +37,13 @@ def search(getter, config_dict):
         while n_runs:
             parameters = {}
             seed()
-            n_runs -= 1
             for i in config_dict:
                 parameters[i] = choice(config_dict[i])
             parameters['epochs'] = parameters['epochs'] * parameters['batch_size']
             parameters['output_dir'] = output_dir
             runs.append([parameters, train_model(getter, parameters)[1]])
+            n_runs -= 1
+            print(f"run done {n_runs} runs left! \n\n\n\n\n")
         end = time.time()
         print(f"total time for search: {end - start}")
     dump_to_file(runs, output_dir)
@@ -76,7 +77,7 @@ def beta_vae_search():
         'method': 'random',
         'n_runs': 500,
         'lr': [1e-3],
-        'beta': [2, 2.5, 3, 3.5, 4],
+        'beta': [5],
         'batch_size': [4, 8, 16, 32],
         'epochs': [80],
         'dim': [64, 128, 256],
@@ -167,11 +168,11 @@ def linflow_vae_search():
 def info_vae_search():
     config_dict = {
         'method': 'random',
-        'n_runs': 500,
+        'n_runs': 1000,
         'lr': [1e-3],
         'kernel': ['rbf', 'imq'],
-        'alpha': [0, 0.5, 1],
-        'lbd': [1e-2, 1e-1, 1, 10],
+        'alpha': [1],
+        'lbd': [1000],
         'bandwidth': [1e-2, 1e-1, 1, 2],
         'scales': [None],
         'batch_size': [4, 8, 16, 32],

@@ -7,7 +7,7 @@ from src.data import load_mrs_simulations, load_mrs_real
 from src.architecture import ConvolutionalEncoder, ConvolutionalDecoder, DenseEncoder, DenseDecoder, \
     DenseDiscriminator
 from src.config import gen_parameters
-from src.utilities.visualization import sample_model, mse
+from src.utilities.visualization import sample_model, mse, KLD
 from numpy import mean
 import time
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -70,7 +70,9 @@ def select_model(getter, parameters):
     #if parameters['data'] == 'simulated':
         #train_dataset, eval_dataset, ppm = load_mrs_simulations()
     if parameters['data'] == 'real':
-        train_dataset, eval_dataset, test_dataset, ppm = load_mrs_real()
+        train_dataset, eval_dataset, test_dataset, ppm = load_mrs_real(averaged=parameters['averaged'], quarter=parameters['quarter'])
+    if parameters['data'] == 'augmented':
+        train_dataset, eval_dataset, ppm = load_mrs_simulations()
     config, model_config, path, model_getter = getter(parameters)
     wandb_callback = get_callback(config, model_config)
     if parameters['architecture'] == 'convolutional':
@@ -90,15 +92,38 @@ def select_model(getter, parameters):
     print(model)
     pipeline = get_pipeline(model, config)
 
-    return path, pipeline, train_dataset, eval_dataset, test_dataset, wandb_callback, ppm
+    return path, pipeline, train_dataset, eval_dataset, wandb_callback, ppm
 
 
 def train_model(getter, parameters):
-    path, pipeline, train_dataset, eval_dataset, test_dataset, wandb_callback, ppm = select_model(getter, parameters)
-
-    start_time = time.time()
-    trained_model = train(path, pipeline, train_dataset, eval_dataset) #, wandb_callback)
-    end_time = time.time()
-    print("Total Time trained: {}".format(end_time - start_time))
-    error = mse(trained_model)
-    return trained_model, float(error)
+    if parameters['data'] == 'augmented':
+        path, pipeline, train_dataset, eval_dataset, wandb_callback, ppm = select_model(getter, parameters)
+        trained_model = train(path, pipeline, train_dataset, eval_dataset)  # , wandb_callback)
+        parameters['data'] = 'real'
+        parameters['epochs'] = parameters['real_epochs']
+        path, pipeline, train_dataset, eval_dataset, wandb_callback, ppm = select_model(getter,
+                                                                                                      parameters)
+        config, _, _, _ = getter(parameters)
+        pipeline = get_pipeline(trained_model, config)
+        start_time = time.time()
+        trained_model = train(path, pipeline, train_dataset, eval_dataset)  # , wandb_callback)
+        end_time = time.time()
+        training_time = end_time - start_time
+        print("Total Time trained: {}".format(training_time))
+        error = mse(trained_model, parameters['averaged'])
+        kld = KLD(trained_model, parameters['averaged'])
+        with open(os.path.join(path, sorted(os.listdir(path))[-1],  'metrics.txt'), 'w') as f:
+            f.write(f" mse: {error}, KLD: {kld}, training_time: {training_time}")
+        return trained_model, float(error)
+    else:
+        path, pipeline, train_dataset, eval_dataset, wandb_callback, ppm = select_model(getter, parameters)
+        start_time = time.time()
+        trained_model = train(path, pipeline, train_dataset, eval_dataset) #, wandb_callback)
+        end_time = time.time()
+        training_time = end_time - start_time
+        print(f"Total Time trained: {training_time}")
+        error = mse(trained_model, averaged=parameters['averaged'])
+        kld = KLD(trained_model, averaged=parameters['averaged']).mean()
+        with open(os.path.join(path, sorted(os.listdir(path))[-1],  'metrics.txt'), 'w') as f:
+            f.write(f" mse: {error}, KLD: {kld}, training_time: {training_time}")
+        return trained_model, float(error), training_time
