@@ -1,1 +1,0 @@
-[[{"lr": 0.0002, "batch_size": 64, "epochs": 200, "dim": 8, "trainer": "base", "architecture": "dense", "disc": "mlp", "data": "real", "output_dir": "custom_VAE"}, 0.1691798906687631]]
