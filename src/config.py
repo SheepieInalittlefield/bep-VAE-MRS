@@ -8,7 +8,7 @@ def trainer_config(parameters):
             learning_rate=parameters['lr'],
             per_device_train_batch_size=parameters['batch_size'],
             per_device_eval_batch_size=parameters['batch_size'],
-            num_epochs=parameters['epochs'],  # Change this to train the model a bit more
+            num_epochs=parameters['epochs'], 
             optimizer_cls=parameters['optimizer'],
             optimizer_params={"weight_decay": parameters["weight_decay"],
                               "betas": (parameters['beta1'], parameters['beta2'])},
@@ -21,7 +21,7 @@ def trainer_config(parameters):
             discriminator_learning_rate=parameters['lr'],
             per_device_train_batch_size=parameters['batch_size'],
             per_device_eval_batch_size=parameters['batch_size'],
-            num_epochs=parameters['epochs'],  # Change this to train the model a bit more
+            num_epochs=parameters['epochs'], 
             optimizer_cls=parameters['optimizer'],
             optimizer_params={"weight_decay": parameters["weight_decay"],
                               "betas": (parameters['beta1'], parameters['beta2'])},
@@ -36,7 +36,7 @@ def trainer_config(parameters):
             discriminator_learning_rate=parameters['disc_lr'],
             per_device_train_batch_size=parameters['batch_size'],
             per_device_eval_batch_size=parameters['batch_size'],
-            num_epochs=parameters['epochs'],  # Change this to train the model a bit more
+            num_epochs=parameters['epochs'], 
             optimizer_cls=parameters['optimizer'],
             optimizer_params={"weight_decay": parameters["weight_decay"],
                               "betas": (parameters['beta1'], parameters['beta2'])},
